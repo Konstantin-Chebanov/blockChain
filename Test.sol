@@ -113,7 +113,7 @@ contract Test is Owned
     
     //-------------------------------Employee-------------------------------------
     
-    function AddEmployee(address empl, string memory _nameEmployee, string memory _position, string memory _phoneNumber) public OnlyEmployee{
+    function AddEmployee(address empl, string memory _nameEmployee, string memory _position, string memory _phoneNumber) public OnlyOwner{
         Employee memory e;
         e.nameEmployee = _nameEmployee;
         e.position = _position;
@@ -132,8 +132,12 @@ contract Test is Owned
         e.position = _newPosition;
         e.phoneNumber = _newPhoneNumber;
     }
-    function DeleteEmployee(address empl) public OnlyOwner {
-        delete employees[empl];
+    function DeleteEmployee(address empl) public OnlyOwner returns(bool) {
+        if(employees[empl].isset == true)
+            {delete employees[empl];
+            return true;
+            }
+        return false;
     }
     
     //-------------------------------Request-------------------------------------
@@ -153,14 +157,20 @@ contract Test is Owned
         
     }
     
-    function GetRequestsList()  public OnlyEmployee view returns (Request[] memory request)
+    function GetRequestsList()  public OnlyEmployee view returns (string[] memory requestType, string[] memory homeAddress, uint[] memory area, uint[] memory cost)
     {
-        request = new Request[](reqAmount);
-        
+        string[] memory requestTypes = new string[](reqAmount);
+        string[] memory homeAddresses = new string[](reqAmount);
+        uint[] memory areas =  new uint[](reqAmount);
+        uint[] memory costs =  new uint[](reqAmount);
         for (uint i = 0; i < reqAmount; i++){
-            request[i] = requests[i];
+            requestTypes[i] = requests[i].requestType == RequestType.NewHome ? "NewHome" : "EditHome";
+            homeAddresses[i] = requests[i].home.homeAddress;
+            areas[i] = requests[i].home.area;
+            costs[i] = requests[i].home.cost;
         }
-        return request;
+        
+        return (requestTypes, homeAddresses, areas, costs);
     }
     
     
