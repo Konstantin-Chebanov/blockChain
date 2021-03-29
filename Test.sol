@@ -1,17 +1,16 @@
 pragma solidity >=0.8.0;
+pragma experimental ABIEncoderV2;
 
 
 contract Owned {
     
-    address private owner;
+    address payable private owner;
     
-    constructor() public
-    {
+    constructor() public {
         owner = msg.sender;
     }
     
-    modifier OnlyOwner
-    {
+    modifier OnlyOwner{
         require
         (
             msg.sender == owner,
@@ -20,16 +19,13 @@ contract Owned {
         _;
     }
     
-    function ChangeOwner(address _owner) public OnlyOwner 
-    {
+    function ChangeOwner(address payable _owner) public OnlyOwner {
         owner = _owner;
     }
     
-    function GetOwner() public returns (address)
-    {
+    function GetOwner() public returns (address){
         return owner;
     }
-    
     
 }
 
@@ -64,7 +60,7 @@ contract Test is Owned
         address add;
         RequestType requestType;
         Home home;
-        uint result;
+        bool result;
     }
     struct Employee
     {
@@ -76,10 +72,20 @@ contract Test is Owned
     
     mapping(address => Employee) private employees;
     mapping(address => Owner) private owners;
-    mapping(uint => Request) private requests;
+    mapping(address => Request) private requests;
     mapping(string => Home) private homes;
     mapping(string => Ownership[]) private ownerships;
-    uint reqAmount = 0;
+    
+    address[] requestInitiator;
+    uint private fee = 1e12;
+    
+    function ChangeFee(uint _fee) public OnlyOwner
+    {
+        fee = _fee;
+    }
+    
+    
+    //---------------------------ModifierStart---------------------------------------
     
     modifier OnlyEmployee {
         require(
@@ -90,7 +96,16 @@ contract Test is Owned
 
     }
     
-    //-------------------------------Home---------------------------------------
+    modifier Costs(uint value){
+        require(
+            msg.value >= value,
+            'Not enough funds!!'
+            );
+        _;
+    }
+    //---------------------------ModifiersEnd-----------------------------------------
+    
+    //-------------------------------HomeStart----------------------------------------
     
     function AddHome(string memory _adr, uint _area, uint _cost) OnlyEmployee public {
         Home memory h;
@@ -109,9 +124,9 @@ contract Test is Owned
         h.cost = _newCost;
     }
     
+    //-------------------------------HomeEnd-------------------------------------------
     
-    
-    //-------------------------------Employee-------------------------------------
+    //-------------------------------EmployeeStart-------------------------------------
     
     function AddEmployee(address empl, string memory _nameEmployee, string memory _position, string memory _phoneNumber) public OnlyOwner{
         Employee memory e;
@@ -140,38 +155,39 @@ contract Test is Owned
         return false;
     }
     
-    //-------------------------------Request-------------------------------------
+    //-------------------------------EmployeeEnd-----------------------------------------
     
-    function NewHomeRequest(address req, string memory homeAddress, uint area, uint cost) public{
+    //-------------------------------RequestStart----------------------------------------
+    
+    function AddRequest(uint rType, string memory homeAddress, uint area, uint cost, address newOwner) public Costs(1e12) payable returns (bool){
         Home memory h;
         h.homeAddress = homeAddress;
         h.area = area;
         h.cost = cost;
         Request memory r;
-        r.add = req;
-        r.requestType = RequestType.NewHome;
+        r.add = rType==0 ? address(0) : newOwner;
+        r.requestType = rType == 0? RequestType.NewHome: RequestType.EditHome;
         r.home = h; 
-        r.result=0;
-        requests[reqAmount] = r;
-        reqAmount++;
-        
+        r.result = false;
+        requests[msg.sender] = r;
+        requestInitiator.push(msg.sender);
     }
     
-    function GetRequestsList()  public OnlyEmployee view returns (string[] memory requestType, string[] memory homeAddress, uint[] memory area, uint[] memory cost)
+    function GetRequestList() public OnlyEmployee returns (uint[] memory, uint[] memory, string[] memory)
     {
-        string[] memory requestTypes = new string[](reqAmount);
-        string[] memory homeAddresses = new string[](reqAmount);
-        uint[] memory areas =  new uint[](reqAmount);
-        uint[] memory costs =  new uint[](reqAmount);
-        for (uint i = 0; i < reqAmount; i++){
-            requestTypes[i] = requests[i].requestType == RequestType.NewHome ? "NewHome" : "EditHome";
-            homeAddresses[i] = requests[i].home.homeAddress;
-            areas[i] = requests[i].home.area;
-            costs[i] = requests[i].home.cost;
+        uint[] memory ids = new uint[](requestInitiator.length);
+        uint[] memory types = new uint[](requestInitiator.length);
+        string[] memory homeAddresses = new string[](requestInitiator.length);
+        for(uint i=0;i!=requestInitiator.length;i++){
+            ids[i] = i;
+            types[i] = requests[requestInitiator[i]].requestType == RequestType.NewHome ? 0: 1;
+            homeAddresses[i] = requests[requestInitiator[i]].home.homeAddress;
         }
-        
-        return (requestTypes, homeAddresses, areas, costs);
+        return (ids, types, homeAddresses);
     }
+    
+    //-------------------------------RequestEnd------------------------------------------
+    
     
     
 }
